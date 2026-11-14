@@ -1,4 +1,4 @@
-name: Kubernetes pipeline
+name: Infrastructure
 
 on:
   push:
@@ -8,7 +8,6 @@ permissions:
   contents: read
   id-token: write
 
-# Apply, destroy, and deploy jobs from different commits never run together.
 concurrency:
   group: k8-pipeline
   cancel-in-progress: false
@@ -24,14 +23,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # Keep Terraform-generated ansible/inventory.ini between runs.
           clean: false
 
       - name: Reject mixed destroy command
         if: >-
           contains(github.event.head_commit.message, '[terraform destroy]') &&
           (contains(github.event.head_commit.message, '[terraform apply]') ||
-          contains(github.event.head_commit.message, '[deploy k8]'))
+          contains(github.event.head_commit.message, '[deploy k8]') ||
+          contains(github.event.head_commit.message, '[deploy webapp]'))
         run: |
           echo 'Do not combine [terraform destroy] with another pipeline keyword.'
           exit 1
@@ -76,7 +75,7 @@ jobs:
         if: contains(github.event.head_commit.message, '[deploy k8]')
         run: ansible-galaxy collection install community.general
 
-      - name: Run Ansible
+      - name: Run Kubernetes Ansible playbook
         if: contains(github.event.head_commit.message, '[deploy k8]')
         working-directory: ansible
         run: ansible-playbook playbooks/site.yml

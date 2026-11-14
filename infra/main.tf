@@ -292,3 +292,15 @@ resource "aws_security_group_rule" "nodes_nodeport" {
   protocol          = "tcp"
   cidr_blocks       = ["${aws_instance.nodes[each.key].private_ip}/32"]
 }
+
+resource "aws_security_group_rule" "nodes_nodeport_admin" {
+  count = var.enable_nodeport_ingress ? 1 : 0
+
+  type              = "ingress"
+  security_group_id = aws_security_group.nodes.id
+  description       = "NodePort from administrator laptop"
+  from_port         = 30000
+  to_port           = 32767
+  protocol          = "tcp"
+  cidr_blocks       = [var.admin_cidr]
+}

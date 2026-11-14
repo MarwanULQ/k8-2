@@ -7,3 +7,5 @@ key_name      = "devops"
 admin_cidr = "111.108.217.18/32"
 
 root_volume_size = 20
+
+enable_nodeport_ingress = true

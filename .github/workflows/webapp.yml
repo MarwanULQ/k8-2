@@ -1,0 +1,67 @@
+name: Webapp
+
+on:
+  workflow_run:
+    workflows: [Infrastructure]
+    types: [completed]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: k8-pipeline
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      contains(github.event.workflow_run.head_commit.message, '[deploy webapp]')
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          clean: false
+
+      - name: Check generated Ansible inventory
+        run: test -s ansible/inventory.ini
+
+      - name: Set image name
+        run: |
+          repository="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGE_NAME=ghcr.io/${repository}" >> "$GITHUB_ENV"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        working-directory: webapp
+        run: |
+          docker build \
+            --tag "${IMAGE_NAME}:${GITHUB_SHA}" \
+            --tag "${IMAGE_NAME}:latest" \
+            .
+          docker push "${IMAGE_NAME}:${GITHUB_SHA}"
+          docker push "${IMAGE_NAME}:latest"
+
+      - name: Install Ansible collection
+        run: ansible-galaxy collection install community.general
+
+      - name: Deploy webapp to Kubernetes
+        working-directory: ansible
+        env:
+          APP_IMAGE: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          GHCR_USERNAME: ${{ github.repository_owner }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+        run: ansible-playbook playbooks/07-deploy-webapp.yml
