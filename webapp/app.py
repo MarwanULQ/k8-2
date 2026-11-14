@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 @app.get("/")
 def index():
-    return "Kubernetes Flask webapp is running.\n"
+    return "Kubernetes Flask webapp is running V2.\n"
 
 
 @app.get("/health")
