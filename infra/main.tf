@@ -144,8 +144,16 @@ resource "aws_security_group" "bastion" {
 
 resource "aws_security_group" "nodes" {
   name        = "${local.common_name}-nodes-sg"
-  description = "Allow restricted Kubernetes traffic and SSH to nodes."
+  description = "Allow all traffic between Kubernetes nodes and SSH to nodes."
   vpc_id      = aws_vpc.lab.id
+
+  ingress {
+    description = "Allow all traffic between Kubernetes nodes"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    self        = true
+  }
 
   ingress {
     description     = "SSH only from bastion"
@@ -228,6 +236,7 @@ resource "aws_instance" "nodes" {
   }
 }
 
+/*
 # -------------------------------------------------------------------
 # Kubernetes node ingress. Use each node's private /32 as the source.
 # Standalone rules avoid a security-group/instance dependency cycle.
@@ -304,3 +313,4 @@ resource "aws_security_group_rule" "nodes_nodeport_admin" {
   protocol          = "tcp"
   cidr_blocks       = [var.admin_cidr]
 }
+*/
