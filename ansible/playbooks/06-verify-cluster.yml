@@ -1,0 +1,29 @@
+---
+- name: Verify the cluster
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Wait for all nodes to be Ready
+      ansible.builtin.command: kubectl wait --for=condition=Ready nodes --all --timeout=300s
+      changed_when: false
+
+    - name: kubectl get nodes
+      ansible.builtin.command: kubectl get nodes -o wide
+      register: nodes
+      changed_when: false
+
+    - name: Show nodes
+      ansible.builtin.debug:
+        var: nodes.stdout_lines
+
+    - name: kubectl get pods -A
+      ansible.builtin.command: kubectl get pods -A
+      register: pods
+      changed_when: false
+
+    - name: Show system pods
+      ansible.builtin.debug:
+        var: pods.stdout_lines

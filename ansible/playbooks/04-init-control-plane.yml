@@ -1,0 +1,40 @@
+---
+- name: Initialize the control plane and install Flannel
+  hosts: control_plane
+  become: true
+  tasks:
+    - name: Run kubeadm init (skipped if already initialized)
+      ansible.builtin.command:
+        argv:
+          - kubeadm
+          - init
+          - "--apiserver-advertise-address={{ ansible_host }}"
+          - "--pod-network-cidr={{ pod_network_cidr }}"
+          - "--cri-socket={{ containerd_socket }}"
+          - "--node-name={{ node_name }}"
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create ~/.kube for ubuntu
+      ansible.builtin.file:
+        path: /home/ubuntu/.kube
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Install kubeconfig for ubuntu
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/ubuntu/.kube/config
+        remote_src: true
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+
+    - name: Apply Flannel CNI
+      ansible.builtin.command: kubectl apply -f {{ flannel_manifest_url }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: flannel
+      changed_when: "'created' in flannel.stdout or 'configured' in flannel.stdout"

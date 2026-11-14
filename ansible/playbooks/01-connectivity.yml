@@ -1,0 +1,29 @@
+---
+- name: Verify SSH and sudo access to all nodes
+  hosts: k8s_nodes
+  gather_facts: true
+  tasks:
+    - name: Show node identity
+      ansible.builtin.debug:
+        msg:
+          - "Inventory host: {{ inventory_hostname }}"
+          - "Target hostname: {{ node_name }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Private IP: {{ ansible_default_ipv4.address | default('n/a') }}"
+          - "Memory (MB): {{ ansible_memtotal_mb }}"
+
+    - name: Confirm sudo works
+      ansible.builtin.command: id -u
+      become: true
+      changed_when: false
+      register: root_uid
+
+    - name: Assert root via become
+      ansible.builtin.assert:
+        that: root_uid.stdout == "0"
+
+    - name: Check outbound access to the Kubernetes package repo
+      ansible.builtin.uri:
+        url: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor_version }}/deb/Release.key
+        method: HEAD
+        status_code: 200

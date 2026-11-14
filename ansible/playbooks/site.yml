@@ -1,0 +1,7 @@
+---
+- import_playbook: 01-connectivity.yml
+- import_playbook: 02-prepare-nodes.yml
+- import_playbook: 03-install-kubernetes.yml
+- import_playbook: 04-init-control-plane.yml
+- import_playbook: 05-join-workers.yml
+- import_playbook: 06-verify-cluster.yml

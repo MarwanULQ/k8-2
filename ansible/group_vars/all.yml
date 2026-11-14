@@ -1,0 +1,6 @@
+---
+kubernetes_minor_version: "v1.35"
+pod_network_cidr: "10.244.0.0/16"   # Flannel default; does not overlap the 10.0.0.0/16 VPC
+containerd_config_path: /etc/containerd/config.toml
+containerd_socket: unix:///run/containerd/containerd.sock
+flannel_manifest_url: https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
