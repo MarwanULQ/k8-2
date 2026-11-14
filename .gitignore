@@ -104,3 +104,6 @@ pnpm-debug.log*
 
 # --- Terraform ---
 .terr*
+
+# --- Generated Ansible inventory ---
+ansible/inventory.ini

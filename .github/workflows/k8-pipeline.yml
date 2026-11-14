@@ -1,0 +1,82 @@
+name: Kubernetes pipeline
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+# Apply, destroy, and deploy jobs from different commits never run together.
+concurrency:
+  group: k8-pipeline
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Keep Terraform-generated ansible/inventory.ini between runs.
+          clean: false
+
+      - name: Reject mixed destroy command
+        if: >-
+          contains(github.event.head_commit.message, '[terraform destroy]') &&
+          (contains(github.event.head_commit.message, '[terraform apply]') ||
+          contains(github.event.head_commit.message, '[deploy k8]'))
+        run: |
+          echo 'Do not combine [terraform destroy] with another pipeline keyword.'
+          exit 1
+
+      - name: Configure AWS credentials
+        if: >-
+          contains(github.event.head_commit.message, '[terraform apply]') ||
+          contains(github.event.head_commit.message, '[terraform destroy]')
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: eu-north-1
+
+      - name: Setup Terraform
+        if: >-
+          contains(github.event.head_commit.message, '[terraform apply]') ||
+          contains(github.event.head_commit.message, '[terraform destroy]')
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        if: >-
+          contains(github.event.head_commit.message, '[terraform apply]') ||
+          contains(github.event.head_commit.message, '[terraform destroy]')
+        working-directory: infra
+        run: terraform init -input=false
+
+      - name: Terraform apply
+        if: contains(github.event.head_commit.message, '[terraform apply]')
+        working-directory: infra
+        run: terraform apply -input=false -auto-approve
+
+      - name: Terraform destroy
+        if: contains(github.event.head_commit.message, '[terraform destroy]')
+        working-directory: infra
+        run: terraform destroy -input=false -auto-approve
+
+      - name: Check generated Ansible inventory
+        if: contains(github.event.head_commit.message, '[deploy k8]')
+        run: test -s ansible/inventory.ini
+
+      - name: Install Ansible collection
+        if: contains(github.event.head_commit.message, '[deploy k8]')
+        run: ansible-galaxy collection install community.general
+
+      - name: Run Ansible
+        if: contains(github.event.head_commit.message, '[deploy k8]')
+        working-directory: ansible
+        run: ansible-playbook playbooks/site.yml

@@ -144,16 +144,8 @@ resource "aws_security_group" "bastion" {
 
 resource "aws_security_group" "nodes" {
   name        = "${local.common_name}-nodes-sg"
-  description = "Allow node SSH only from the bastion security group."
+  description = "Allow restricted Kubernetes traffic and SSH to nodes."
   vpc_id      = aws_vpc.lab.id
-
-  ingress {
-    description = "Allow all traffic between Kubernetes nodes"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    self        = true
-  }
 
   ingress {
     description     = "SSH only from bastion"
@@ -234,4 +226,69 @@ resource "aws_instance" "nodes" {
     Name = "${local.common_name}-${each.value.name}"
     Role = each.value.name
   }
+}
+
+# -------------------------------------------------------------------
+# Kubernetes node ingress. Use each node's private /32 as the source.
+# Standalone rules avoid a security-group/instance dependency cycle.
+# -------------------------------------------------------------------
+
+resource "aws_security_group_rule" "nodes_api" {
+  for_each = local.nodes
+
+  type              = "ingress"
+  security_group_id = aws_security_group.nodes.id
+  description       = "Kubernetes API from ${each.key} private IP"
+  from_port         = 6443
+  to_port           = 6443
+  protocol          = "tcp"
+  cidr_blocks       = ["${aws_instance.nodes[each.key].private_ip}/32"]
+}
+
+resource "aws_security_group_rule" "nodes_kubelet" {
+  for_each = local.nodes
+
+  type              = "ingress"
+  security_group_id = aws_security_group.nodes.id
+  description       = "Kubelet API from ${each.key} private IP"
+  from_port         = 10250
+  to_port           = 10250
+  protocol          = "tcp"
+  cidr_blocks       = ["${aws_instance.nodes[each.key].private_ip}/32"]
+}
+
+resource "aws_security_group_rule" "nodes_etcd" {
+  for_each = local.nodes
+
+  type              = "ingress"
+  security_group_id = aws_security_group.nodes.id
+  description       = "etcd from ${each.key} private IP"
+  from_port         = 2379
+  to_port           = 2380
+  protocol          = "tcp"
+  cidr_blocks       = ["${aws_instance.nodes[each.key].private_ip}/32"]
+}
+
+resource "aws_security_group_rule" "nodes_calico_vxlan" {
+  for_each = local.nodes
+
+  type              = "ingress"
+  security_group_id = aws_security_group.nodes.id
+  description       = "Calico VXLAN from ${each.key} private IP"
+  from_port         = 4789
+  to_port           = 4789
+  protocol          = "udp"
+  cidr_blocks       = ["${aws_instance.nodes[each.key].private_ip}/32"]
+}
+
+resource "aws_security_group_rule" "nodes_nodeport" {
+  for_each = var.enable_nodeport_ingress ? local.nodes : {}
+
+  type              = "ingress"
+  security_group_id = aws_security_group.nodes.id
+  description       = "NodePort from ${each.key} private IP"
+  from_port         = 30000
+  to_port           = 32767
+  protocol          = "tcp"
+  cidr_blocks       = ["${aws_instance.nodes[each.key].private_ip}/32"]
 }
