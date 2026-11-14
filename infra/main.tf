@@ -314,3 +314,16 @@ resource "aws_security_group_rule" "nodes_nodeport_admin" {
   cidr_blocks       = [var.admin_cidr]
 }
 */
+
+# Laptop -> webapp NodePort only.
+resource "aws_security_group_rule" "nodes_webapp_nodeport_admin" {
+  count = var.enable_nodeport_ingress ? 1 : 0
+
+  type              = "ingress"
+  security_group_id = aws_security_group.nodes.id
+  description       = "Flask webapp NodePort from administrator laptop"
+  from_port         = 30080
+  to_port           = 30080
+  protocol          = "tcp"
+  cidr_blocks       = [var.admin_cidr]
+}

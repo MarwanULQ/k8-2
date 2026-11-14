@@ -43,5 +43,4 @@ variable "root_volume_size" {
 variable "enable_nodeport_ingress" {
   description = "Allow TCP NodePort traffic from Kubernetes node private IPs."
   type        = bool
-  default     = true
 }
