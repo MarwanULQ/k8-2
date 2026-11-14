@@ -12,8 +12,6 @@ terraform {
     bucket       = "terra-backend-141899078173-eu-north-1-an"
     key          = "k8_lab/terraform.tfstate"
     region       = "eu-north-1"
-    encrypt      = true
-    use_lockfile = true
   }
 }
 
