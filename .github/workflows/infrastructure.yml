@@ -55,7 +55,8 @@ jobs:
           contains(github.event.head_commit.message, '[terraform apply]') ||
           contains(github.event.head_commit.message, '[terraform destroy]')
         working-directory: infra
-        run: terraform init -input=false
+        # Migrate changed backend state automatically. No -reconfigure: preserve state.
+        run: terraform init -input=false -migrate-state -force-copy -lock-timeout=5m
 
       - name: Terraform apply
         if: contains(github.event.head_commit.message, '[terraform apply]')
