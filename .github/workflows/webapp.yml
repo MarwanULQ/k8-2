@@ -33,6 +33,13 @@ jobs:
       - name: Check generated Ansible inventory
         run: test -s ansible/inventory.ini
 
+      - name: Run authentication tests
+        working-directory: webapp
+        run: |
+          python3 -m venv "$RUNNER_TEMP/library-test-venv"
+          "$RUNNER_TEMP/library-test-venv/bin/pip" install --quiet -r requirements.txt
+          PYTHONPATH=.. "$RUNNER_TEMP/library-test-venv/bin/pytest" -q ../tests
+
       - name: Set image name
         run: |
           repository="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"

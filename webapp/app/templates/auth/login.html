@@ -1,13 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>Log in</h1>
-  <form method="post">
-    {{ form.hidden_tag() }}
-    {% for field in [form.email, form.password] %}
-      <p>{{ field.label }} {{ field() }}
-        {% for error in field.errors %}<span class="error">{{ error }}</span>{% endfor %}
-      </p>
-    {% endfor %}
-    {{ form.submit() }}
-  </form>
+  <section class="auth-layout login-layout">
+    <div class="auth-intro">
+      <p class="eyebrow">WELCOME BACK</p>
+      <h1>Pick up where you left off.</h1>
+      <p>Log in to see your library and keep your reading plans moving.</p>
+    </div>
+    <div class="form-card">
+      <h2>Log in</h2>
+      <p class="muted">New to the library? <a href="{{ url_for('auth.register') }}">Create an account</a>.</p>
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        {% for field in [form.email, form.password] %}
+          <div class="form-field">
+            {{ field.label }}
+            {{ field(placeholder=field.label.text) }}
+            {% for error in field.errors %}<span class="error">{{ error }}</span>{% endfor %}
+          </div>
+        {% endfor %}
+        {{ form.submit(class_="button button-wide") }}
+      </form>
+    </div>
+  </section>
 {% endblock %}

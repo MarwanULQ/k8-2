@@ -37,6 +37,34 @@ def create_app(test_config=None):
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
+
+    @app.cli.command("seed-books")
+    def seed_books():
+        from .models import Book
+
+        books = [
+            ("The Great Gatsby", "F. Scott Fitzgerald", "Classic", "great-gatsby.jpg", "12.99", 4),
+            ("Pride and Prejudice", "Jane Austen", "Romance", "pride-prejudice.jpg", "10.50", 3),
+            ("Frankenstein", "Mary Shelley", "Gothic", "frankenstein.jpg", "11.25", 5),
+            ("1984", "George Orwell", "Dystopian", "1984.jpg", "13.75", 2),
+            ("The Hobbit", "J.R.R. Tolkien", "Fantasy", "the-hobbit.jpg", "15.00", 4),
+            ("The Little Prince", "Antoine de Saint-Exupéry", "Fiction", "little-prince.jpg", "9.99", 3),
+        ]
+        for title, author, category, cover, price, quantity in books:
+            book = Book.query.filter_by(title=title).first()
+            if book is None:
+                book = Book(title=title, total_quantity=quantity, available_quantity=quantity)
+                db.session.add(book)
+            book.author = author
+            book.category = category
+            book.cover_image = cover
+            book.price = price
+            if book.total_quantity is None:
+                book.total_quantity = quantity
+            if book.available_quantity is None:
+                book.available_quantity = quantity
+        db.session.commit()
+        print(f"Seeded or updated {len(books)} books.")
     return app
 
 

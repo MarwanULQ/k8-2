@@ -50,3 +50,8 @@ output "ssh_node_commands_from_bastion" {
     name => "ssh -i ~/.ssh/${var.key_name}.pem ubuntu@${instance.private_ip}"
   }
 }
+
+output "postgres_nodeport" {
+  description = "PostgreSQL NodePort for the administrator laptop when NodePort ingress is enabled."
+  value       = 30432
+}

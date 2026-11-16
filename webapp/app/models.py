@@ -19,3 +19,14 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+
+class Book(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    author = db.Column(db.String(150), nullable=False)
+    category = db.Column(db.String(80), nullable=False)
+    cover_image = db.Column(db.String(255), nullable=False)
+    price = db.Column(db.Numeric(10, 2), nullable=False)
+    total_quantity = db.Column(db.Integer, nullable=False, default=1)
+    available_quantity = db.Column(db.Integer, nullable=False, default=1)

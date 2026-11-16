@@ -1,7 +1,7 @@
 import pytest
 
 from webapp.app import create_app, db
-from webapp.app.models import User
+from webapp.app.models import Book, User
 
 
 @pytest.fixture
@@ -93,3 +93,22 @@ def test_csrf_rejects_post(tmp_path):
     app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'csrf.db'}", "SECRET_KEY": "test-secret"})
     response = app.test_client().post("/login", data={"email": "a@example.com", "password": "password123"})
     assert response.status_code == 400
+
+
+def test_homepage_displays_book_catalogue(app, client):
+    with app.app_context():
+        db.session.add(Book(
+            title="Test Book",
+            author="Test Author",
+            category="Fiction",
+            cover_image="test.svg",
+            price="12.50",
+            total_quantity=3,
+            available_quantity=2,
+        ))
+        db.session.commit()
+    response = client.get("/")
+    assert b"Test Book" in response.data
+    assert b"Test Author" in response.data
+    assert b"2 of 3 available" in response.data
+    assert b"Available to borrow" in response.data

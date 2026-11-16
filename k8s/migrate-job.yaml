@@ -9,7 +9,7 @@ spec:
       containers:
         - name: migrate
           image: __IMAGE__
-          command: ["flask", "--app", "wsgi", "db", "upgrade"]
+          command: ["sh", "-c", "flask --app wsgi db upgrade && flask --app wsgi seed-books"]
           env:
             - name: SECRET_KEY
               valueFrom: {secretKeyRef: {name: library-secrets, key: SECRET_KEY}}

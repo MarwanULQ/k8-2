@@ -4,26 +4,37 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Library</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <nav>
-    <a href="{{ url_for('main.index') }}">Library</a>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="{{ url_for('main.index') }}">
+        <span class="brand-mark">L</span>
+        Library
+      </a>
+      <div class="nav-links">
     {% if current_user.is_authenticated %}
-      <span>Signed in as {{ current_user.name }}</span>
+      <span class="user-label">{{ current_user.name }}</span>
       <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit">Log out</button>
+        <button class="button button-ghost" type="submit">Log out</button>
       </form>
     {% else %}
       <a href="{{ url_for('auth.login') }}">Log in</a>
-      <a href="{{ url_for('auth.register') }}">Register</a>
+      <a class="button button-small" href="{{ url_for('auth.register') }}">Register</a>
     {% endif %}
+      </div>
+    </div>
   </nav>
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, message in messages %}
-      <p class="flash {{ category }}">{{ message }}</p>
-    {% endfor %}
-  {% endwith %}
-  {% block content %}{% endblock %}
+  <main class="page-shell">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <p class="flash {{ category }}">{{ message }}</p>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">Your personal library, in one place.</footer>
 </body>
 </html>
