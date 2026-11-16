@@ -5,3 +5,4 @@
 - import_playbook: 04-init-control-plane.yml
 - import_playbook: 05-join-workers.yml
 - import_playbook: 06-verify-cluster.yml
+- import_playbook: 06b-install-storage.yml

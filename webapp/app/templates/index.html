@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Library Management</h1>
+  {% if current_user.is_authenticated %}
+    <p>Welcome, {{ current_user.name }}.</p>
+  {% else %}
+    <p>Log in or register to use the library.</p>
+  {% endif %}
+{% endblock %}

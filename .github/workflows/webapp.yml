@@ -64,4 +64,6 @@ jobs:
           APP_IMAGE: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           GHCR_USERNAME: ${{ github.repository_owner }}
           GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_KEY: ${{ secrets.LIBRARY_SECRET_KEY }}
         run: ansible-playbook playbooks/07-deploy-webapp.yml

@@ -1,0 +1,12 @@
+---
+- name: Install local-path storage provisioner
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Apply local-path provisioner
+      ansible.builtin.command: >-
+        kubectl apply -f
+        https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+      environment: {KUBECONFIG: /etc/kubernetes/admin.conf}
+      changed_when: true

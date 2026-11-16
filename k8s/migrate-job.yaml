@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: Job
+metadata: {name: library-migrate, namespace: library}
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: __IMAGE__
+          command: ["flask", "--app", "wsgi", "db", "upgrade"]
+          env:
+            - name: SECRET_KEY
+              valueFrom: {secretKeyRef: {name: library-secrets, key: SECRET_KEY}}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: library-secrets, key: POSTGRES_PASSWORD}}
+            - name: DATABASE_URL
+              value: postgresql+psycopg://library:$(POSTGRES_PASSWORD)@postgres:5432/library

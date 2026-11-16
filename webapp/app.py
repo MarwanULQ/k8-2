@@ -1,13 +1,3 @@
-from flask import Flask, jsonify
+from . import create_app
 
-app = Flask(__name__)
-
-
-@app.get("/")
-def index():
-    return "Kubernetes Flask webapp is running V2.\n"
-
-
-@app.get("/health")
-def health():
-    return jsonify(status="ok")
+app = create_app()
