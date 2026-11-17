@@ -29,7 +29,7 @@
         cache_valid_time: 3600
 
     - name: Check Helm installation
-      ansible.builtin.command: helm version --short
+      ansible.builtin.command: helm version --template '{{ .Version }}'
       register: helm_version_check
       changed_when: false
       failed_when: false
@@ -41,7 +41,9 @@
         creates: /usr/local/bin/helm
       environment:
         HELM_INSTALL_DIR: /usr/local/bin
-      when: helm_version_check.rc != 0
+      when: >-
+        helm_version_check.rc != 0 or
+        helm_version_check.stdout is not version('v3.17.0', '>=')
 
     - name: Copy Helm chart
       ansible.builtin.copy:
@@ -68,9 +70,9 @@
         --namespace library --create-namespace
         --values {{ values_file }}
         --take-ownership
-        --wait --wait-for-jobs --timeout 5m
+        --wait --wait-for-jobs --timeout 5m --debug
       environment: {KUBECONFIG: /etc/kubernetes/admin.conf}
-      no_log: true
+      no_log: false
 
     - name: Show deployed Helm release
       ansible.builtin.command: helm status library --namespace library
