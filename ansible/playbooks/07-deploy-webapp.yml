@@ -101,9 +101,8 @@
         --namespace library --create-namespace
         --values {{ values_file }}
         --take-ownership
-        --wait --wait-for-jobs --timeout 5m --debug
+        --wait --wait-for-jobs --timeout 5m
       environment: {KUBECONFIG: /etc/kubernetes/admin.conf}
-      no_log: false
 
     - name: Show deployed Helm release
       ansible.builtin.command: helm status library --namespace library
