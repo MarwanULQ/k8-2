@@ -29,8 +29,14 @@
         cache_valid_time: 3600
 
     - name: Check Helm installation
-      ansible.builtin.command: helm version --template '{{ .Version }}'
+      ansible.builtin.command: helm version --short
       register: helm_version_check
+      changed_when: false
+      failed_when: false
+
+    - name: Check Helm ownership support
+      ansible.builtin.command: helm upgrade --help
+      register: helm_help
       changed_when: false
       failed_when: false
 
@@ -43,7 +49,7 @@
         HELM_INSTALL_DIR: /usr/local/bin
       when: >-
         helm_version_check.rc != 0 or
-        helm_version_check.stdout is not version('v3.17.0', '>=')
+        '--take-ownership' not in helm_help.stdout
 
     - name: Copy Helm chart
       ansible.builtin.copy:
