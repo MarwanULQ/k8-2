@@ -36,7 +36,7 @@ metadata:
   labels:
     {{- include "library.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "library.fullname" . }}-postgres
+  serviceName: {{ include "library.postgresName" . }}
   replicas: 1
   selector:
     matchLabels:
