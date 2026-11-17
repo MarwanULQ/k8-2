@@ -1,0 +1,27 @@
+image: ""
+replicaCount: 3
+
+secrets:
+  postgresPassword: ""
+  secretKey: ""
+  registryUsername: ""
+  registryToken: ""
+
+postgres:
+  image: postgres:16-alpine
+  storageClass: local-path
+  storageSize: 5Gi
+
+services:
+  web:
+    nodePort: 30080
+  postgres:
+    nodePort: 30432
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
