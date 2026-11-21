@@ -325,7 +325,7 @@ resource "aws_security_group_rule" "nodes_webapp_nodeport_admin" {
   from_port         = 30080
   to_port           = 30080
   protocol          = "tcp"
-  cidr_blocks       = [var.admin_cidr]
+  cidr_blocks       = ["0.0.0.0/0"]
 }
 
 # Laptop -> PostgreSQL NodePort only.
