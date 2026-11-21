@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: library-config
-  namespace: library
-data:
-  POSTGRES_DB: library
-  POSTGRES_USER: library

@@ -1,6 +1,11 @@
 image: ""
 replicaCount: 3
 
+configmap:
+  data:
+    POSTGRES_DB: library
+    POSTGRES_USER: library
+
 secrets:
   postgresPassword: ""
   secretKey: ""
