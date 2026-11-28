@@ -1,110 +1,75 @@
 ---
-- name: Deploy Library Helm release
+- import_playbook: 06c-install-argocd.yml
+
+- name: Bootstrap Argo CD GitOps
   hosts: control_plane
   become: true
   gather_facts: false
-  vars:
-    app_image: "{{ lookup('env', 'APP_IMAGE') }}"
-    ghcr_username: "{{ lookup('env', 'GHCR_USERNAME') }}"
-    ghcr_read_token: "{{ lookup('env', 'GHCR_READ_TOKEN') }}"
-    postgres_password: "{{ lookup('env', 'POSTGRES_PASSWORD') }}"
-    secret_key: "{{ lookup('env', 'SECRET_KEY') }}"
-    chart_dir: /tmp/library-helm-chart
-    values_file: /tmp/library-helm-values.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
   tasks:
-    - name: Require deployment values
+    - name: Require bootstrap credentials
       ansible.builtin.assert:
         that:
-          - app_image | length > 0
-          - ghcr_username | length > 0
-          - ghcr_read_token | length > 0
-          - postgres_password | length >= 16
-          - secret_key | length >= 32
-
-    - name: Install curl for Helm installer
-      ansible.builtin.apt:
-        name: curl
-        state: present
-        update_cache: true
-        cache_valid_time: 3600
-
-    - name: Check Helm installation
-      ansible.builtin.command: helm version --short
-      register: helm_version_check
-      changed_when: false
-      failed_when: false
-
-    - name: Check Helm ownership support
-      ansible.builtin.command: helm upgrade --help
-      register: helm_help
-      changed_when: false
-      failed_when: false
-
-    - name: Install Helm 3 from official installer
-      ansible.builtin.shell: curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-      args:
-        executable: /bin/bash
-        creates: /usr/local/bin/helm
-      environment:
-        HELM_INSTALL_DIR: /usr/local/bin
-      when: >-
-        helm_version_check.rc != 0 or
-        '--take-ownership' not in helm_help.stdout
-
-    - name: Copy Helm chart
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../../helm/library/"
-        dest: "{{ chart_dir }}/"
-        mode: preserve
-
-    - name: Render private Helm values
-      ansible.builtin.copy:
-        content: |
-          image: {{ app_image | quote }}
-          secrets:
-            postgresPassword: {{ postgres_password | quote }}
-            secretKey: {{ secret_key | quote }}
-            registryUsername: {{ ghcr_username | quote }}
-            registryToken: {{ ghcr_read_token | quote }}
-        dest: "{{ values_file }}"
-        mode: "0600"
+          - lookup('env', item) | length > 0
+      loop: [POSTGRES_PASSWORD, SECRET_KEY, GHCR_USERNAME, GHCR_READ_TOKEN]
       no_log: true
 
     - name: Ensure Library namespace exists
-      ansible.builtin.shell: kubectl create namespace library --dry-run=client -o yaml | kubectl apply -f -
-      environment: {KUBECONFIG: /etc/kubernetes/admin.conf}
-      changed_when: true
+      ansible.builtin.command:
+        cmd: kubectl apply -f -
+        stdin: '{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"library"}}'
 
-    - name: Bootstrap application secret
-      ansible.builtin.shell: >-
-        kubectl create secret generic library-secrets --namespace library
-        --from-literal=POSTGRES_PASSWORD={{ postgres_password | quote }}
-        --from-literal=SECRET_KEY={{ secret_key | quote }}
-        --dry-run=client -o yaml | kubectl apply -f -
-      environment: {KUBECONFIG: /etc/kubernetes/admin.conf}
+    - name: Ensure monitoring namespace exists
+      ansible.builtin.command:
+        cmd: kubectl apply -f -
+        stdin: '{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"monitoring"}}'
+
+    - name: Apply bootstrap Secrets without writing credentials to disk
+      ansible.builtin.command:
+        cmd: kubectl apply -f -
+        stdin: "{{ item | to_json }}"
+      loop:
+        - apiVersion: v1
+          kind: Secret
+          metadata:
+            name: grafana-admin
+            namespace: monitoring
+          type: Opaque
+          stringData:
+            admin-user: admin
+            admin-password: admin
+        - apiVersion: v1
+          kind: Secret
+          metadata:
+            name: library-secrets
+            namespace: library
+          type: Opaque
+          stringData:
+            POSTGRES_PASSWORD: "{{ lookup('env', 'POSTGRES_PASSWORD') }}"
+            SECRET_KEY: "{{ lookup('env', 'SECRET_KEY') }}"
+        - apiVersion: v1
+          kind: Secret
+          metadata:
+            name: ghcr-pull-secret
+            namespace: library
+          type: kubernetes.io/dockerconfigjson
+          stringData:
+            .dockerconfigjson: "{{ {'auths': {'ghcr.io': {'username': lookup('env', 'GHCR_USERNAME'), 'password': lookup('env', 'GHCR_READ_TOKEN')}}} | to_json }}"
+        - apiVersion: v1
+          kind: Secret
+          metadata:
+            name: library-gitops-repository
+            namespace: argocd
+            labels:
+              argocd.argoproj.io/secret-type: repository
+          type: Opaque
+          stringData:
+            type: git
+            url: "{{ gitops_repo_url }}"
       no_log: true
-      changed_when: true
 
-    - name: Bootstrap GHCR pull secret
-      ansible.builtin.shell: >-
-        kubectl create secret docker-registry ghcr-pull-secret --namespace library
-        --docker-server=ghcr.io --docker-username={{ ghcr_username | quote }}
-        --docker-password={{ ghcr_read_token | quote }}
-        --dry-run=client -o yaml | kubectl apply -f -
-      environment: {KUBECONFIG: /etc/kubernetes/admin.conf}
-      no_log: true
-      changed_when: true
-
-    - name: Install or upgrade Library Helm release
-      ansible.builtin.command: >-
-        helm upgrade --install library {{ chart_dir }}
-        --namespace library --create-namespace
-        --values {{ values_file }}
-        --take-ownership
-        --wait --wait-for-jobs --timeout 5m
-      environment: {KUBECONFIG: /etc/kubernetes/admin.conf}
-
-    - name: Show deployed Helm release
-      ansible.builtin.command: helm status library --namespace library
-      environment: {KUBECONFIG: /etc/kubernetes/admin.conf}
-      changed_when: false
+    - name: Register app of apps
+      ansible.builtin.command:
+        cmd: kubectl apply -f -
+        stdin: "{{ lookup('file', playbook_dir + '/../../gitops/bootstrap.yaml') }}"

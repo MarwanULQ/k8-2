@@ -19,6 +19,8 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       contains(github.event.workflow_run.head_commit.message, '[deploy webapp]')
     runs-on: self-hosted
+    env:
+      GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
     defaults:
       run:
         shell: bash
@@ -53,13 +55,15 @@ jobs:
           password: ${{ secrets.GHCR_READ_TOKEN }}
 
       - name: Build and push image
+        env:
+          APP_REVISION: ${{ github.event.workflow_run.head_sha }}
         working-directory: webapp
         run: |
           docker build \
-            --tag "${IMAGE_NAME}:${GITHUB_SHA}" \
+            --tag "${IMAGE_NAME}:${APP_REVISION}" \
             --tag "${IMAGE_NAME}:latest" \
             .
-          docker push "${IMAGE_NAME}:${GITHUB_SHA}"
+          docker push "${IMAGE_NAME}:${APP_REVISION}"
           docker push "${IMAGE_NAME}:latest"
 
       - name: Install Ansible collection
@@ -68,9 +72,41 @@ jobs:
       - name: Deploy webapp to Kubernetes
         working-directory: ansible
         env:
-          APP_IMAGE: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           GHCR_USERNAME: ${{ github.repository_owner }}
           GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           SECRET_KEY: ${{ secrets.LIBRARY_SECRET_KEY }}
         run: ansible-playbook playbooks/07-deploy-webapp.yml
+
+      - name: Checkout GitOps repository
+        if: env.GITOPS_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: MarwanULQ/k8-2-gitops
+          ref: main
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: gitops-checkout
+
+      - name: Publish desired image to GitOps
+        if: env.GITOPS_TOKEN != ''
+        working-directory: gitops-checkout
+        env:
+          APP_REVISION: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          sed -i "s|^image:.*|image: ${IMAGE_NAME}:${APP_REVISION}|" environments/cluster/library.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add environments/cluster/library.yaml
+          if ! git diff --cached --quiet; then
+            git commit -m "deploy: library ${APP_REVISION}"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - name: Report manual GitOps image update
+        if: env.GITOPS_TOKEN == ''
+        env:
+          APP_REVISION: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "Image built; update environments/cluster/library.yaml in GitOps to deploy:" >> "$GITHUB_STEP_SUMMARY"
+          echo "image: ${IMAGE_NAME}:${APP_REVISION}" >> "$GITHUB_STEP_SUMMARY"

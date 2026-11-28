@@ -1,4 +1,6 @@
 ---
+argocd_version: v3.2.0
+gitops_repo_url: https://github.com/MarwanULQ/k8-2-gitops.git
 kubernetes_minor_version: "v1.35"
 pod_network_cidr: "10.244.0.0/16"   # Flannel default; does not overlap the 10.0.0.0/16 VPC
 containerd_config_path: /etc/containerd/config.toml

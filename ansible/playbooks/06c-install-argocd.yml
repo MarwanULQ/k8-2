@@ -1,0 +1,38 @@
+---
+- name: Install Argo CD
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Create Argo CD namespace
+      ansible.builtin.command:
+        cmd: kubectl apply -f -
+        stdin: '{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"argocd"}}'
+      register: namespace_result
+      changed_when: "'created' in namespace_result.stdout"
+
+    - name: Install pinned Argo CD manifests
+      ansible.builtin.command: >-
+        kubectl apply --server-side --force-conflicts -n argocd
+        -f https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_version }}/manifests/install.yaml
+      register: install_result
+      changed_when: "'configured' in install_result.stdout or 'created' in install_result.stdout"
+
+    - name: Expose Argo CD HTTPS
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - patch
+          - service
+          - argocd-server
+          - -n
+          - argocd
+          - --type=merge
+          - -p
+          - '{"spec":{"type":"NodePort","ports":[{"name":"https","port":443,"targetPort":8080,"nodePort":30443}]}}'
+
+    - name: Wait for Argo CD server
+      ansible.builtin.command: kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
+      changed_when: false
